@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="d90c48b9-3d5c-4a63-816c-47153a24be4f" basePath="/email" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="696e85d5-1133-4151-ae2f-32cb3608d574" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" database="email" />
+	</db:config>
+	<flow name="emailsLoginFlow" doc:id="e001fdaf-943d-4aab-b9e0-9bd75e1e2d53" >
+		<http:listener doc:name="Listener" doc:id="f6ec69a3-8f04-443d-8519-dfc01b97be27" config-ref="HTTP_Listener_config" path="/login"/>
+		<try doc:name="Try" doc:id="20549da6-3d2b-47fb-a134-7093a3e8446f" >
+			<db:select doc:name="Select " doc:id="1d5d8e35-ff24-4ff9-a0ab-e795162965cf" config-ref="Database_Config">
+				<db:sql >SELECT * FROM users</db:sql>
+			</db:select>
+		</try>
+	</flow>
+	<flow name="emailsCreateAccountFlow" doc:id="970891bf-09ae-443c-8b55-9acb0fa52fd3" >
+		<http:listener doc:name="Listener" doc:id="acd18c22-9ea5-4d09-bea7-4191f9ef729a" config-ref="HTTP_Listener_config" path="/createaccount"/>
+		<try doc:name="Try" doc:id="315d129c-b854-4b8f-82d8-ac45b0aadb10" >
+			<set-variable value="#[message.payload.username]" doc:name="Username" doc:id="0f8c2b03-4918-4303-8792-9e43636c86e6" variableName="username"/>
+			<set-variable value="#[message.payload.password]" doc:name="Password" doc:id="cc072221-ddd3-4907-87f7-1448a0021573" variableName="password"/>
+			<ee:transform doc:name="Transform Message" doc:id="30321490-c8cc-443c-8592-14e8b67bc55f">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Message": "Account has been successfully created"
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<set-payload value="#[payload]" doc:name="Set Payload" doc:id="125b8da0-02e5-42cd-9cd2-1fee5e367f9b" mimeType="text/html"/>
+			<db:insert doc:name="Insert" doc:id="6fd4b97e-1404-4664-9aac-3aff92677a0a" config-ref="Database_Config">
+				<db:sql >INSERT INTO users (username, password) VALUES  (:username, :password)</db:sql>
+				<db:input-parameters ><![CDATA[#[{
+	"username" : vars.username,
+	"password" : vars.password
+}]]]></db:input-parameters>
+			</db:insert>
+		</try>
+	</flow>
+</mule>
